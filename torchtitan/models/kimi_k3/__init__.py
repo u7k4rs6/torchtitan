@@ -34,6 +34,7 @@ from torchtitan.models.common.config_utils import (
 from torchtitan.models.common.moe import QuantileBalancedTopKRouter
 from torchtitan.models.common.nn_modules import GELU, RMSNorm
 from torchtitan.models.common.vision_encoder import (
+    InvariantRowParallelLinear,
     VisionAttention,
     VisionMLP,
     VisionTransformerBlock,
@@ -324,11 +325,19 @@ def _vision_encoder_config(
             wq=_linear(dim, qkv_dim),
             wk=_linear(dim, qkv_dim),
             wv=_linear(dim, qkv_dim),
-            proj=_linear(qkv_dim, dim),
+            proj=InvariantRowParallelLinear.Config(
+                in_features=qkv_dim,
+                out_features=dim,
+                param_init=_LINEAR_INIT,
+            ),
         ),
         mlp=VisionMLP.Config(
             fc1=_linear(dim, hidden_dim, param_init=_fan_in_linear_init(dim)),
-            fc2=_linear(hidden_dim, dim, param_init=_fan_in_linear_init(hidden_dim)),
+            fc2=InvariantRowParallelLinear.Config(
+                in_features=hidden_dim,
+                out_features=dim,
+                param_init=_fan_in_linear_init(hidden_dim),
+            ),
             act_fn=GELU.Config(approximate="tanh"),
         ),
     )
@@ -352,9 +361,9 @@ def _vision_encoder_config(
                 merged_dim,
                 param_init=_fan_in_linear_init(merged_dim),
             ),
-            linear_2=_linear(
-                merged_dim,
-                text_dim,
+            linear_2=InvariantRowParallelLinear.Config(
+                in_features=merged_dim,
+                out_features=text_dim,
                 param_init=_fan_in_linear_init(merged_dim),
             ),
             post_norm=RMSNorm.Config(

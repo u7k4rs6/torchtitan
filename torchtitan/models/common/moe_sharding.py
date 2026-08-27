@@ -150,20 +150,16 @@ def _routed_experts_sharding_configs(
     *,
     enable_ep: bool,
     enable_sp: bool,
-) -> tuple[ShardingConfig, ShardingConfig | None, ShardingConfig | None]:
+) -> tuple[ShardingConfig, ShardingConfig, ShardingConfig]:
     """Configs for the routed local-SPMD region and grouped linears."""
     if enable_ep:
-        w13_config = ShardingConfig(
-            state_shardings={"weight": expert_param_placement_sparse()}
-        )
-        w2_config = ShardingConfig(
-            state_shardings={"weight": expert_param_placement_sparse()}
-        )
         experts_input_layout = dense_sequence_parallel_placement()
+        expert_param_placement = expert_param_placement_sparse()
     else:
         experts_input_layout = dense_activation_placement(tp=spmd.R, cp=spmd.S(0))
-        w13_config = None
-        w2_config = None
+        expert_param_placement = dense_param_placement(tp=spmd.R)
+    w13_config = ShardingConfig(state_shardings={"weight": expert_param_placement})
+    w2_config = ShardingConfig(state_shardings={"weight": expert_param_placement})
 
     tokens_per_expert_layout = _tokens_per_expert_placement(enable_ep=enable_ep)
 
@@ -219,15 +215,15 @@ def set_routed_moe_sharding_config(
 ) -> None:
     """Configure an MoE wrapper, router, and routed experts.
 
-    Configures sparse expert parallelism when EP is enabled and leaves routed
-    experts unsharded otherwise:
+    Configures sparse expert parallelism when EP is enabled and replicates
+    routed experts otherwise:
 
     - ``moe`` (wrapper): external input/output contracts on ``{TP}``.
     - ``moe.router``: input contracts plus the expert-count buffer placement.
     - ``moe.router.gate``: Replicate weights and output.
     - ``moe.routed_experts.{w13,w2}``: expert weights use sparse ``{EP}``
-      placements when EP is enabled and remain unsharded otherwise. The parent
-      owns the local-SPMD boundary.
+      placements when EP is enabled and are replicated on the dense axes
+      otherwise. The parent owns the local-SPMD boundary.
 
     Args:
         moe_cfg: The ``MoE.Config`` instance to populate.
