@@ -16,7 +16,12 @@ import pytest
 import tyro
 from torchtitan.components.optim import AdamW, OptimizersContainer
 from torchtitan.components.validate import Validator
-from torchtitan.config import ConfigManager, DebugConfig, TrainingConfig
+from torchtitan.config import (
+    ConfigManager,
+    DebugConfig,
+    LocalCompileConfig,
+    TrainingConfig,
+)
 from torchtitan.config.parallelism import ParallelismConfig
 from torchtitan.models.deepseek_v3.config_registry import (
     deepseek_v3_debugmodel_hybridep,
@@ -616,7 +621,7 @@ class TestConfigManager(unittest.TestCase):
             ["--module", "llama3", "--config", "llama3_debugmodel"]
         )
         assert config.checkpointer is None
-        assert config.compile is None
+        assert config.compile == LocalCompileConfig()
         assert config.validator is None
 
         hints = typing.get_type_hints(Trainer.Config, include_extras=True)

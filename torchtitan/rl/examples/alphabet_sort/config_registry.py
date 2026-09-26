@@ -24,7 +24,12 @@ from torchtitan.components.optim import (
     OptimizersContainer,
 )
 from torchtitan.components.renderer import from_renderers
-from torchtitan.config import CompileConfig, DebugConfig, OverrideConfig, TrainingConfig
+from torchtitan.config import (
+    DebugConfig,
+    LocalCompileConfig,
+    OverrideConfig,
+    TrainingConfig,
+)
 from torchtitan.config.parallelism import ParallelismConfig
 from torchtitan.config.transform import (
     BatchInvariantFlexConverter,
@@ -108,7 +113,7 @@ def rl_grpo_qwen3_0_6b_varlen() -> Controller.Config:
             num_samples_per_prompt=num_samples_per_prompt,
             validation=ValidationConfig(num_samples=20),
         ),
-        compile=CompileConfig(backend="aot_eager"),
+        compile=LocalCompileConfig(),
         rollouter=_alphabet_sort_rollouter_config(),
         renderer=from_renderers(Qwen3RendererConfig(enable_thinking=False)),
         generator_router=InterGeneratorRouter.Config(
@@ -194,7 +199,7 @@ def rl_grpo_qwen3_0_6b_flex() -> Controller.Config:
             num_samples_per_prompt=num_samples_per_prompt,
             validation=ValidationConfig(num_samples=20),
         ),
-        compile=CompileConfig(backend="aot_eager"),
+        compile=LocalCompileConfig(),
         rollouter=_alphabet_sort_rollouter_config(),
         renderer=from_renderers(Qwen3RendererConfig(enable_thinking=False)),
         metrics=MetricsProcessor.Config(enable_wandb=True),
@@ -255,6 +260,7 @@ def rl_grpo_qwen3_0_6b_flex_batch_invariant() -> Controller.Config:
     forward (even at data_parallel_shard_degree=1), matching the bf16 generator.
     """
     config = rl_grpo_qwen3_0_6b_flex()
+    config.compile = LocalCompileConfig(regions=[])
     config.model = _qwen3_rl_model_registry(
         "0.6B",
         seq_len=config.trainer.training.max_context_length,
@@ -303,7 +309,7 @@ def rl_grpo_gpt_oss_20b_varlen() -> Controller.Config:
             num_samples_per_prompt=num_samples_per_prompt,
             validation=ValidationConfig(num_samples=20),
         ),
-        compile=CompileConfig(backend="aot_eager"),
+        compile=LocalCompileConfig(),
         rollouter=_alphabet_sort_rollouter_config(),
         renderer=from_renderers(GptOssRendererConfig(reasoning_effort="low")),
         generator_router=InterGeneratorRouter.Config(
@@ -383,7 +389,7 @@ def rl_grpo_gpt_oss_debug_varlen() -> Controller.Config:
                 drop_zero_std_reward_groups=False,
             ),
         ),
-        compile=CompileConfig(backend="aot_eager"),
+        compile=LocalCompileConfig(),
         rollouter=_alphabet_sort_rollouter_config(),
         # Debug tokenizer (vocab 2048, matches debugmodel); the gpt_oss renderer
         # needs gpt-oss special tokens absent here, so use the qwen3 renderer
@@ -467,7 +473,7 @@ def rl_grpo_gpt_oss_debug_varlen_batch_invariant() -> Controller.Config:
                 drop_zero_std_reward_groups=False,
             ),
         ),
-        compile=CompileConfig(backend="aot_eager"),
+        compile=LocalCompileConfig(regions=[]),
         rollouter=_alphabet_sort_rollouter_config(),
         # Debug tokenizer (vocab 2048, matches debugmodel); the gpt_oss renderer
         # needs gpt-oss special tokens absent here, so use the qwen3 renderer
@@ -546,7 +552,7 @@ def rl_grpo_qwen3_1_7b() -> Controller.Config:
             num_samples_per_prompt=num_samples_per_prompt,
             validation=ValidationConfig(num_samples=20),
         ),
-        compile=CompileConfig(backend="aot_eager"),
+        compile=LocalCompileConfig(),
         rollouter=_alphabet_sort_rollouter_config(),
         renderer=from_renderers(Qwen3RendererConfig(enable_thinking=False)),
         metrics=MetricsProcessor.Config(enable_wandb=True),
@@ -613,7 +619,7 @@ def rl_grpo_qwen3_14b() -> Controller.Config:
             num_samples_per_prompt=num_samples_per_prompt,
             validation=ValidationConfig(num_samples=20),
         ),
-        compile=CompileConfig(backend="aot_eager"),
+        compile=LocalCompileConfig(),
         rollouter=_alphabet_sort_rollouter_config(),
         renderer=from_renderers(Qwen3RendererConfig(enable_thinking=False)),
         metrics=MetricsProcessor.Config(enable_wandb=True),
@@ -689,9 +695,7 @@ def rl_grpo_qwen3_moe_debug_varlen() -> Controller.Config:
                 drop_zero_std_reward_groups=False,
             ),
         ),
-        # MoE EP all-to-all path issues unpinned D2H copies that block
-        # torch.compile and CUDA graph capture; disable both.
-        compile=None,
+        compile=LocalCompileConfig(),
         rollouter=_alphabet_sort_rollouter_config(),
         renderer=from_renderers(Qwen3RendererConfig(enable_thinking=False)),
         metrics=MetricsProcessor.Config(enable_wandb=True),
@@ -836,9 +840,7 @@ def rl_grpo_qwen3_moe_debug_varlen_batch_invariant() -> Controller.Config:
                 drop_zero_std_reward_groups=False,
             ),
         ),
-        # MoE EP all-to-all path issues unpinned D2H copies that block
-        # torch.compile and CUDA graph capture; disable both.
-        compile=None,
+        compile=LocalCompileConfig(regions=[]),
         rollouter=_alphabet_sort_rollouter_config(),
         renderer=from_renderers(Qwen3RendererConfig(enable_thinking=False)),
         metrics=MetricsProcessor.Config(enable_wandb=True),
@@ -913,7 +915,7 @@ def rl_grpo_qwen3_30b_a3b_varlen() -> Controller.Config:
             num_samples_per_prompt=num_samples_per_prompt,
             validation=ValidationConfig(num_samples=20),
         ),
-        compile=None,
+        compile=LocalCompileConfig(),
         rollouter=_alphabet_sort_rollouter_config(),
         renderer=from_renderers(Qwen3RendererConfig(enable_thinking=False)),
         metrics=MetricsProcessor.Config(enable_wandb=True),
@@ -1033,7 +1035,7 @@ def rl_grpo_qwen3_0_6b_varlen_batch_invariant() -> Controller.Config:
             num_samples_per_prompt=num_samples_per_prompt,
             validation=ValidationConfig(num_samples=20),
         ),
-        compile=CompileConfig(backend="aot_eager"),
+        compile=LocalCompileConfig(regions=[]),
         rollouter=_alphabet_sort_rollouter_config(),
         renderer=from_renderers(Qwen3RendererConfig(enable_thinking=False)),
         metrics=MetricsProcessor.Config(enable_wandb=True),
@@ -1127,7 +1129,7 @@ def rl_grpo_qwen3_5_9b_varlen() -> Controller.Config:
             num_samples_per_prompt=num_samples_per_prompt,
             validation=ValidationConfig(num_samples=20),
         ),
-        compile=None,
+        compile=LocalCompileConfig(),
         rollouter=_alphabet_sort_rollouter_config(),
         renderer=from_renderers(Qwen3RendererConfig(enable_thinking=False)),
         metrics=MetricsProcessor.Config(enable_wandb=True),
@@ -1183,6 +1185,7 @@ def rl_grpo_qwen3_5_9b_varlen() -> Controller.Config:
 def rl_grpo_qwen3_5_9b_varlen_batch_invariant() -> Controller.Config:
     """On-policy, batch-invariant Qwen3.5-9B GRPO with matching TP=2."""
     config = rl_grpo_qwen3_5_9b_varlen()
+    config.compile = LocalCompileConfig(regions=[])
     config.async_loop = dataclasses.replace(config.async_loop, target_offpolicy_steps=0)
     config.trainer = dataclasses.replace(
         config.trainer,
@@ -1219,7 +1222,7 @@ def rl_grpo_qwen3_5_debug_varlen() -> Controller.Config:
                 drop_zero_std_reward_groups=False,
             ),
         ),
-        compile=None,
+        compile=LocalCompileConfig(),
         rollouter=_alphabet_sort_rollouter_config(),
         renderer=from_renderers(Qwen3RendererConfig(enable_thinking=False)),
         metrics=MetricsProcessor.Config(enable_wandb=True),
@@ -1271,6 +1274,7 @@ def rl_grpo_qwen3_5_debug_varlen() -> Controller.Config:
 def rl_grpo_qwen3_5_debug_varlen_batch_invariant() -> Controller.Config:
     """On-policy, batch-invariant Qwen3.5 GRPO config for CI."""
     config = rl_grpo_qwen3_5_debug_varlen()
+    config.compile = LocalCompileConfig(regions=[])
     config.async_loop = dataclasses.replace(config.async_loop, target_offpolicy_steps=0)
     config.trainer = dataclasses.replace(
         config.trainer,

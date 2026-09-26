@@ -12,7 +12,7 @@ from torchtitan.components.optim import (
     Optim,
     OptimizersContainer,
 )
-from torchtitan.config import CompileConfig, TrainingConfig
+from torchtitan.config import LocalCompileConfig, TrainingConfig
 from torchtitan.config.parallelism import ParallelismConfig
 from torchtitan.config.transform import (
     Float8GroupedLinearConverter,
@@ -200,7 +200,7 @@ def deepseek_v3_16b(seq_len: int | None = None) -> Trainer.Config:
         ),
         checkpointer=None,
         activation_checkpoint=SelectiveAC.Config(),
-        compile=CompileConfig(components=["loss"]),
+        compile=LocalCompileConfig(),
     )
 
 
@@ -259,7 +259,7 @@ def deepseek_v3_671b(seq_len: int | None = None) -> Trainer.Config:
         ),
         checkpointer=None,
         activation_checkpoint=SelectiveAC.Config(),
-        compile=CompileConfig(components=["loss"]),
+        compile=LocalCompileConfig(),
     )
 
 
