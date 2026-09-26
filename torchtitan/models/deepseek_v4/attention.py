@@ -204,12 +204,12 @@ class DSV4FlexInnerAttention(FlexInnerAttention):
         attn_sink,
         *,
         cmp_k=None,
-        attention_masks=None,
+        attention_metadata=None,
     ) -> torch.Tensor:
         """Run DSV4 sparse attention over a folded token stream."""
-        if attention_masks is not None:
+        if attention_metadata is not None:
             raise ValueError(
-                "DSV4FlexInnerAttention does not accept attention_masks; "
+                "DSV4FlexInnerAttention does not accept attention_metadata; "
                 "the DSA block mask is built internally."
             )
         if attn_sink is None:
@@ -253,7 +253,7 @@ class DSV4FlexInnerAttention(FlexInnerAttention):
                 q,
                 kv,
                 kv,
-                attention_masks=block_mask,
+                attention_metadata=block_mask,
                 score_mod=v4_sink_score_mod,
                 scale=self.softmax_scale,
             )
@@ -270,13 +270,13 @@ class SlidingWindowAttention(DSV4FlexInnerAttention):
         swa_k,
         attn_sink,
         *,
-        attention_masks=None,
+        attention_metadata=None,
     ) -> torch.Tensor:
         return self._forward_impl(
             q,
             swa_k,
             attn_sink,
-            attention_masks=attention_masks,
+            attention_metadata=attention_metadata,
         )
 
 
@@ -292,14 +292,14 @@ class HeavilyCompressedAttention(DSV4FlexInnerAttention):
         cmp_k,
         attn_sink,
         *,
-        attention_masks=None,
+        attention_metadata=None,
     ) -> torch.Tensor:
         return self._forward_impl(
             q,
             swa_k,
             attn_sink,
             cmp_k=cmp_k,
-            attention_masks=attention_masks,
+            attention_metadata=attention_metadata,
         )
 
 
@@ -327,12 +327,12 @@ class DSV4InnerAttention(InnerAttention):
         self.index_topk = config.index_topk
 
     def _gather_attn(
-        self, q_THD, swa_k_TD, cmp_k_SD, cmp_topk_TK, attn_sink, attention_masks
+        self, q_THD, swa_k_TD, cmp_k_SD, cmp_topk_TK, attn_sink, attention_metadata
     ) -> torch.Tensor:
         """``cmp_topk_TK`` holds indices into ``cmp_k_SD``; -1 marks unused slots."""
-        if attention_masks is not None:
+        if attention_metadata is not None:
             raise ValueError(
-                f"{type(self).__name__} does not accept attention_masks; "
+                f"{type(self).__name__} does not accept attention_metadata; "
                 "the attended positions are built internally."
             )
         with spmd.no_typecheck():
@@ -371,7 +371,7 @@ class CompressedSparseAttention(DSV4InnerAttention):
         idx_w,
         attn_sink,
         *,
-        attention_masks=None,
+        attention_metadata=None,
     ) -> torch.Tensor:
         with spmd.no_typecheck():
             cmp_topk = Indexer.select(
@@ -387,7 +387,9 @@ class CompressedSparseAttention(DSV4InnerAttention):
                 torch.arange(1, q.size(0) + 1, device=q.device) // self.compress_ratio
             ).unsqueeze(1)
             cmp_topk = torch.where(cmp_topk < limit_T1, cmp_topk, -1)
-        return self._gather_attn(q, swa_k, cmp_k, cmp_topk, attn_sink, attention_masks)
+        return self._gather_attn(
+            q, swa_k, cmp_k, cmp_topk, attn_sink, attention_metadata
+        )
 
 
 class Attention(BaseAttention):
@@ -470,7 +472,7 @@ class Attention(BaseAttention):
 
         self.inner_attention = cfg.inner_attention.build()
 
-    def forward(self, x, attention_masks=None, positions=None):
+    def forward(self, x, attention_metadata=None, positions=None):
         """Apply one DeepSeek V4 attention layer over folded tokens."""
         tp_group = spmd_mesh_group(MeshAxisName.TP)
         if tp_group is not None:
@@ -522,7 +524,7 @@ class Attention(BaseAttention):
                 idx_k,
                 idx_w,
                 attn_sink_param,
-                attention_masks=attention_masks,
+                attention_metadata=attention_metadata,
             )
         elif self.compress_ratio > 1:
             o = self.inner_attention(
@@ -530,14 +532,14 @@ class Attention(BaseAttention):
                 kv,
                 cmp_k,
                 attn_sink_param,
-                attention_masks=attention_masks,
+                attention_metadata=attention_metadata,
             )
         else:
             o = self.inner_attention(
                 q,
                 kv,
                 attn_sink_param,
-                attention_masks=attention_masks,
+                attention_metadata=attention_metadata,
             )
 
         o_nope, o_rope = torch.split(o, [self.head_dim - rd, rd], dim=-1)
