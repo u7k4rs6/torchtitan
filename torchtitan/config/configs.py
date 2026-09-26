@@ -119,20 +119,13 @@ class TrainingConfig:
 
 
 @dataclass(kw_only=True, slots=True)
-class CompileConfig:
-    components: list[str] = field(default_factory=lambda: ["loss"])
-    """Non-model components to compile."""
+class LocalCompileConfig:
+    regions: list[str] = field(default_factory=lambda: ["gated_rmsnorm"])
+    """Named regions to compile independently with ``torch.compile``.
 
-    backend: str = "inductor"
-
-    def __post_init__(self) -> None:
-        allowed = frozenset({"loss"})
-        unknown = [c for c in self.components if c not in allowed]
-        if unknown:
-            raise ValueError(
-                f"Unknown compile.components entries {unknown}; "
-                f"allowed values are {sorted(allowed)}"
-            )
+    Gated RMSNorm compilation is enabled by default. Loss compilation is opt-in.
+    FlexAttention manages its own compilation and is not controlled by this list.
+    """
 
 
 @dataclass(kw_only=True, slots=True)
