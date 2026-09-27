@@ -19,10 +19,10 @@ from torch.nn.attention.flex_attention import BlockMask
 
 from torchtitan.components.loss import IGNORE_INDEX
 from torchtitan.components.tokenizer import HuggingFaceTokenizer
-from torchtitan.models.deepseek_v4 import config_registry
 from torchtitan.models.deepseek_v4.attention import DSV4FlexInnerAttention
 from torchtitan.models.deepseek_v4.compressor import Indexer
 from torchtitan.models.deepseek_v4.model import DeepSeekV4Model
+from torchtitan_recipes.tests.models import deepseek_v4 as config_registry
 
 
 def window_idxs(window_size, bsz, seqlen, device):
