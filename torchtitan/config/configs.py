@@ -118,13 +118,20 @@ class TrainingConfig:
     """
 
 
+# Built-in local compile regions enabled by default.
+DEFAULT_LOCAL_COMPILE_REGIONS = ("gated_rmsnorm", "offset_rmsnorm")
+
+
 @dataclass(kw_only=True, slots=True)
 class LocalCompileConfig:
-    regions: list[str] = field(default_factory=lambda: ["gated_rmsnorm"])
+    regions: list[str] = field(
+        default_factory=lambda: list(DEFAULT_LOCAL_COMPILE_REGIONS)
+    )
     """Named regions to compile independently with ``torch.compile``.
 
-    Gated RMSNorm compilation is enabled by default. Loss compilation is opt-in.
-    FlexAttention manages its own compilation and is not controlled by this list.
+    Gated RMSNorm and Offset RMSNorm compilation are enabled by default. Loss
+    compilation is opt-in. FlexAttention manages its own compilation and is not
+    controlled by this list.
     """
 
 
