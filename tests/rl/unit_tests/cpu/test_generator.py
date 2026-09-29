@@ -16,9 +16,11 @@ the SamplingParams contract, and the vLLM metric timing math.
 import asyncio
 from contextlib import nullcontext
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
+import torchtitan.rl.generator as generator_module
 from torchtitan.components.optimizer import AdamW
 from torchtitan.config import DebugConfig
 from torchtitan.distributed.activation_checkpoint import FullAC
@@ -101,6 +103,122 @@ def _generator():
         debug=SimpleNamespace(seed=None),
     )
     return generator
+
+
+def _staging_generator(state_dict):
+    generator = _generator()
+    generator._staged_model_state_dict = state_dict
+    generator._staged_policy_version = None
+    generator.config.enable_cpu_weight_staging = True
+    return generator
+
+
+def test_stage_model_state_dict_updates_staging_buffers_in_place():
+    async def main():
+        staging_state_dict = {"weight": "old", "generator_only": "unchanged"}
+        generator = _staging_generator(staging_state_dict)
+
+        def fill_state_dict(*args, **kwargs):
+            assert kwargs["user_state_dict"] is staging_state_dict
+            staging_state_dict["weight"] = "fetched"
+            return {"weight": "fetched"}
+
+        get_state_dict = AsyncMock(side_effect=fill_state_dict)
+        with patch.object(generator_module.ts, "get_state_dict", get_state_dict):
+            await generator.stage_model_state_dict(3)
+            assert generator._staged_model_state_dict is staging_state_dict
+            assert generator._staged_policy_version == 3
+
+            await generator.stage_model_state_dict(3)
+            get_state_dict.assert_awaited_once_with(
+                "model_state_dict",
+                user_state_dict=staging_state_dict,
+                strict=False,
+                direct_rdma=False,
+            )
+            with pytest.raises(RuntimeError, match="must be applied"):
+                await generator.stage_model_state_dict(4)
+
+        loaded_state_dict = None
+
+        def load_state_dict(state_dict, *, strict):
+            nonlocal loaded_state_dict
+            loaded_state_dict = state_dict
+            assert not strict
+
+        generator._get_model = lambda: SimpleNamespace(
+            model=SimpleNamespace(
+                state_dict=lambda: {"weight": "old", "generator_only": "old"},
+                load_state_dict=load_state_dict,
+            )
+        )
+        generator._rank = 1
+        generator.config.reset_prefix_cache_on_weight_sync = False
+        await generator._pull_model_state_dict(3)
+
+        assert loaded_state_dict == {
+            "weight": "fetched",
+            "generator_only": "unchanged",
+        }
+        assert generator._staged_policy_version is None
+
+    asyncio.run(main())
+
+
+def test_stage_model_state_dict_can_retry_after_fetch_failure():
+    async def main():
+        staging_state_dict = {"weight": object()}
+        generator = _staging_generator(staging_state_dict)
+        get_state_dict = AsyncMock(
+            side_effect=[RuntimeError("fetch failed"), staging_state_dict]
+        )
+
+        with patch.object(generator_module.ts, "get_state_dict", get_state_dict):
+            with pytest.raises(RuntimeError, match="fetch failed"):
+                await generator.stage_model_state_dict(3)
+            assert generator._staged_policy_version is None
+
+            await generator.stage_model_state_dict(3)
+        assert get_state_dict.await_count == 2
+        assert generator._staged_policy_version == 3
+
+    asyncio.run(main())
+
+
+def test_cpu_weight_staging_disabled_uses_direct_pull():
+    async def main():
+        generator = _generator()
+        generator.config.enable_cpu_weight_staging = False
+        generator.config.reset_prefix_cache_on_weight_sync = False
+        generator._rank = 1
+        model_state_dict = {"weight": "old"}
+        loaded_state_dict = None
+
+        def load_state_dict(state_dict, *, strict):
+            nonlocal loaded_state_dict
+            loaded_state_dict = state_dict
+            assert not strict
+
+        model = SimpleNamespace(
+            model=SimpleNamespace(
+                state_dict=lambda: model_state_dict,
+                load_state_dict=load_state_dict,
+            )
+        )
+        generator._get_model = lambda: model
+
+        async def get_spmd_state_dict(state_dict, *, model, version):
+            assert version == 3
+            state_dict["weight"] = "fetched"
+
+        generator._get_spmd_state_dict = get_spmd_state_dict
+
+        await generator._pull_model_state_dict(3)
+
+        assert loaded_state_dict == {"weight": "fetched"}
+        assert generator.policy_version == 3
+
+    asyncio.run(main())
 
 
 def _dispatcher(*, rank=0, dp_degree=1, tp_degree=1, dp_routing_strategy=None):
