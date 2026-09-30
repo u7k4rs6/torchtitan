@@ -111,6 +111,7 @@ class SplitStageGraphs(StageGraphs, Protocol):
         *,
         unsharded_param_values: list[Any],
         flat_buffer_values: list[Any],
+        runtime_inputs: dict[str, torch.Tensor] | None = None,
         runtime_validate: bool = False,
     ) -> tuple[Any, tuple[Any, ...]]:
         """Run the stage forward graph.
@@ -128,6 +129,8 @@ class SplitStageGraphs(StageGraphs, Protocol):
                 ``unshard_params``.
             flat_buffer_values (list[Any]): Flat buffer values from the stage
                 module.
+            runtime_inputs: Named inputs supplied by the schedule action rather
+                than the model forward signature.
             runtime_validate (bool): Whether to run repeated per-microbatch
                 validation before executing the graph.
 
@@ -256,6 +259,7 @@ class OverlapStageGraphs(Protocol):
         forward_loss_kwargs: dict[str, Any],
         forward_unsharded_param_values: list[Any],
         forward_flat_buffer_values: list[Any],
+        forward_runtime_inputs: dict[str, torch.Tensor] | None = None,
         runtime_validate: bool = False,
     ) -> tuple[list[Any], list[Any], Any, tuple[Any, ...]]:
         """Run one multiplexed forward/backward graph pair.
@@ -279,6 +283,8 @@ class OverlapStageGraphs(Protocol):
                 for the forward stage.
             forward_flat_buffer_values (list[Any]): Flat buffers for the
                 forward stage.
+            forward_runtime_inputs: Named inputs resolved from the forward
+                schedule action.
             runtime_validate (bool): Whether to run repeated per-microbatch
                 validation before executing the multiplexed graph.
 
@@ -298,6 +304,7 @@ class StageGraphsProvider(Protocol):
         ctx: _PipelineContext,
         *,
         loss_kwargs: dict[str, Any],
+        forward_inputs: dict[tuple[int, int], dict[str, torch.Tensor]] | None = None,
     ) -> dict[tuple[int, int], OverlapStageGraphs]:
         """Prepare every local stage for graph runtime execution.
 
@@ -308,6 +315,8 @@ class StageGraphsProvider(Protocol):
                 step.
             loss_kwargs (dict[str, Any]): Extra loss keyword arguments from the
                 graph runtime.
+            forward_inputs: Named runtime inputs indexed by stage and
+                microbatch.
 
         Returns:
             dict[tuple[int, int], OverlapStageGraphs]: Mapping from
