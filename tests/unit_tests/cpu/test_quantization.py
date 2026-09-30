@@ -19,12 +19,13 @@ from torchtitan.components.data import (
     SingleDatasetConfig,
 )
 from torchtitan.components.data.sources import HuggingFaceRandomAccessSource
-from torchtitan.config import ConfigManager, LocalCompileConfig
+from torchtitan.config import ConfigManager
 from torchtitan.config.transform import (
     Float8LinearConverter,
     MXFP8LinearConverter,
     NVFP4LinearConverter,
 )
+from torchtitan.distributed.local_compile import LocalCompileConfig
 from torchtitan.models.common.activation import Sigmoid
 from torchtitan.models.common.attention import QKVLinear
 from torchtitan.models.common.config_utils import make_router_config

@@ -24,7 +24,6 @@ from torch._functorch.aot_autograd import (
 from torch._guards import tracing, TracingContext
 from torch.utils._pytree import TreeSpec
 
-from torchtitan.config import LocalCompileConfig
 from torchtitan.distributed import ParallelismContext
 from torchtitan.protocols.module import Module
 
@@ -109,7 +108,6 @@ def joint_graph_builder(
     bw_compiler: Callable | None = None,
     joint_custom_passes: list[Callable] | None = None,
     dump_folder: str | None = None,
-    compile_config: LocalCompileConfig | None = None,
     serializable: bool = False,
     on_compile: Callable[[Any, TreeSpec | None], None] | None = None,
 ):
@@ -124,7 +122,6 @@ def joint_graph_builder(
         bw_compiler: Optional custom backward compiler function
         joint_custom_passes: list of custom passes to run on the joint graph
         dump_folder: Optional folder to dump the graph to
-        compile_config: Compile configuration
         serializable: If True, compile with serialization support
         on_compile: Optional callback invoked after compilation with
             (compiled_fn, out_spec)

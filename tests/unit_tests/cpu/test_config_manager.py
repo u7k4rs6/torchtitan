@@ -16,13 +16,9 @@ import pytest
 import tyro
 from torchtitan.components.optim import AdamW, OptimizersContainer
 from torchtitan.components.validate import Validator
-from torchtitan.config import (
-    ConfigManager,
-    DebugConfig,
-    LocalCompileConfig,
-    TrainingConfig,
-)
+from torchtitan.config import ConfigManager, DebugConfig, TrainingConfig
 from torchtitan.config.parallelism import ParallelismConfig
+from torchtitan.distributed.local_compile import LocalCompileConfig
 from torchtitan.models.deepseek_v3.config_registry import (
     deepseek_v3_debugmodel_hybridep,
 )
@@ -389,14 +385,14 @@ class TestConfigManager(unittest.TestCase):
                 parallelism=ParallelismConfig(pipeline_parallel_degree=2),
             )
 
-    def test_trainer_rejects_compiled_loss_with_spmd_typechecking(self):
+    def test_trainer_rejects_local_compile_with_spmd_typechecking(self):
         config = ConfigManager().parse_args(
             ["--module", "llama3", "--config", "llama3_debugmodel"]
         )
         config.debug.spmd_typechecking = True
         config.activation_checkpoint = None
 
-        with pytest.raises(ValueError, match="Local loss compilation"):
+        with pytest.raises(ValueError, match="Local compilation"):
             config.__post_init__()
 
     def test_sdc_replay_is_off_the_cli(self):

@@ -13,14 +13,10 @@ import torch
 import torchstore as ts
 
 from torchtitan.components.checkpointer.utils import canonical_fqn
-from torchtitan.config import (
-    apply_overrides,
-    Configurable,
-    LocalCompileConfig,
-    TORCH_DTYPE_MAP,
-)
+from torchtitan.config import apply_overrides, Configurable, TORCH_DTYPE_MAP
 from torchtitan.config.validation import validate_model_training_config
 from torchtitan.distributed import utils as dist_utils
+from torchtitan.distributed.local_compile import LocalCompileConfig
 from torchtitan.models.common.aux_loss import collect_aux_loss_metrics
 from torchtitan.observability import structured_logger as sl
 from torchtitan.observability.logging import init_logger
@@ -68,7 +64,7 @@ class Trainer(Configurable):
         config: Config,
         *,
         model_config: BaseModel.Config,
-        compile_config: LocalCompileConfig | None,
+        local_compile_config: LocalCompileConfig,
         max_num_documents: int | None,
         hf_assets_path: str = "",
         generator_dtype: str = "",
@@ -98,6 +94,7 @@ class Trainer(Configurable):
             training=config.training,
             debug=config.debug,
             activation_checkpoint=config.activation_checkpoint,
+            compile_config=local_compile_config,
             max_num_documents=max_num_documents,
         )
 
@@ -119,7 +116,7 @@ class Trainer(Configurable):
             engine.device_memory_monitor.device_name
         )
         engine.initialize(
-            compile_config=compile_config,
+            local_compile_config=local_compile_config,
             hf_assets_path=hf_assets_path,
         )
 
