@@ -389,6 +389,16 @@ class TestConfigManager(unittest.TestCase):
                 parallelism=ParallelismConfig(pipeline_parallel_degree=2),
             )
 
+    def test_trainer_rejects_compiled_loss_with_spmd_typechecking(self):
+        config = ConfigManager().parse_args(
+            ["--module", "llama3", "--config", "llama3_debugmodel"]
+        )
+        config.debug.spmd_typechecking = True
+        config.activation_checkpoint = None
+
+        with pytest.raises(ValueError, match="Local loss compilation"):
+            config.__post_init__()
+
     def test_sdc_replay_is_off_the_cli(self):
         hints = typing.get_type_hints(Trainer.Config, include_extras=True)
         assert tyro.conf.Suppress in hints["sdc_replayer"].__metadata__
