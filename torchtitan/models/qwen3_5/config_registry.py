@@ -17,14 +17,6 @@ from torchtitan.components.optim import (
 from torchtitan.components.tokenizer import MultiModalTokenizer
 from torchtitan.config import TrainingConfig
 from torchtitan.config.parallelism import ParallelismConfig
-from torchtitan.config.transform import (
-    apply_transforms,
-    Float8GroupedLinearConverter,
-    Float8LinearConverter,
-    GroupedLinearLoRAHandler,
-    LinearLoRAHandler,
-    LoRATransform,
-)
 from torchtitan.distributed.activation_checkpoint import FullAC, SelectiveAC
 from torchtitan.hf_datasets.multimodal.mm_collator import MultiModalCollator
 from torchtitan.hf_datasets.multimodal.mm_datasets import (
@@ -147,36 +139,6 @@ def qwen35_debugmodel_moe(
         ),
         checkpointer=None,
         activation_checkpoint=SelectiveAC.Config(),
-    )
-
-
-def qwen35_debugmodel_moe_float8_lora(
-    seq_len: int | None = DEFAULT_DEBUG_MODEL_SEQ_LEN,
-) -> Trainer.Config:
-    config = qwen35_debugmodel_moe(seq_len=seq_len)
-    config.model = model_registry(
-        "debugmodel_moe",
-        enable_sp=True,
-        seq_len=seq_len,
-        moe_comm_backend="standard",
-        converters=[
-            Float8LinearConverter.Config(
-                emulate=False,
-                model_compile_enabled=False,
-            ),
-            Float8GroupedLinearConverter.Config(model_compile_enabled=False),
-        ],
-    )
-    return apply_transforms(
-        config,
-        [
-            LoRATransform(
-                handlers=(LinearLoRAHandler(), GroupedLinearLoRAHandler()),
-                rank=8,
-                alpha=16.0,
-                target_modules=["w13", "w2"],
-            )
-        ],
     )
 
 

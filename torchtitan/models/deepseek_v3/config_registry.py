@@ -15,8 +15,6 @@ from torchtitan.components.optim import (
 from torchtitan.config import CompileConfig, TrainingConfig
 from torchtitan.config.parallelism import ParallelismConfig
 from torchtitan.config.transform import (
-    Float8GroupedLinearConverter,
-    Float8LinearConverter,
     MXFP8GroupedLinearConverter,
     MXFP8LinearConverter,
 )
@@ -142,22 +140,6 @@ def deepseek_v3_debugmodel_mxfp8(
     return config
 
 
-def deepseek_v3_debugmodel_float8_grouped(
-    seq_len: int | None = DEFAULT_DEBUG_MODEL_SEQ_LEN,
-) -> Trainer.Config:
-    config = deepseek_v3_debugmodel(seq_len=seq_len)
-    config.compile = CompileConfig(components=["model"])
-    config.model = model_registry(
-        "debugmodel",
-        enable_sp=True,
-        seq_len=seq_len,
-        converters=[
-            Float8GroupedLinearConverter.Config(model_compile_enabled=True),
-        ],
-    )
-    return config
-
-
 def deepseek_v3_debugmodel_hybridep(
     seq_len: int | None = DEFAULT_DEBUG_MODEL_SEQ_LEN,
 ) -> Trainer.Config:
@@ -270,30 +252,3 @@ def deepseek_v3_671b(seq_len: int | None = None) -> Trainer.Config:
         activation_checkpoint=SelectiveAC.Config(),
         compile=CompileConfig(components=["loss"]),
     )
-
-
-def deepseek_v3_671b_float8(seq_len: int | None = None) -> Trainer.Config:
-    config = deepseek_v3_671b(seq_len=seq_len)
-    # Quantize the dense Linear layers and the MoE expert grouped GEMMs to
-    # float8 (fp8). This requires torchao and is only supported on NVIDIA SM89+
-    # or AMD MI300+; on other backends (e.g. Intel XPU) the converter raises at
-    # build time, so use the plain deepseek_v3_671b config there.
-    model_compile_enabled = (
-        config.compile is not None and "model" in config.compile.components
-    )
-    config.model = model_registry(
-        "671B",
-        enable_sp=True,
-        seq_len=seq_len,
-        attn_backend="flex",
-        converters=[
-            Float8LinearConverter.Config(
-                filter_fqns=["lm_head", "router.gate"],
-                model_compile_enabled=model_compile_enabled,
-            ),
-            Float8GroupedLinearConverter.Config(
-                model_compile_enabled=model_compile_enabled
-            ),
-        ],
-    )
-    return config

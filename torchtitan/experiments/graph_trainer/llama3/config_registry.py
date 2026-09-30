@@ -16,7 +16,6 @@ from torchtitan.hf_datasets.text_datasets import DATASETS
 from torchtitan.models.common.config_utils import decoder_vocab_size
 from torchtitan.models.llama3 import model_registry as llama3_model_registry
 from torchtitan.models.llama3.config_registry import (
-    llama3_405b,
     llama3_70b,
     llama3_8b,
     llama3_debugmodel,
@@ -142,14 +141,6 @@ def graph_trainer_llama3_8b_mxfp8() -> GraphTrainer.Config:
 def graph_trainer_llama3_70b() -> GraphTrainer.Config:
     config = to_graph_trainer_config(
         llama3_70b(seq_len=8192), GraphTrainerLlama3Model.Config
-    )
-    config.compile = GraphTrainerCompileConfig()
-    return config
-
-
-def graph_trainer_llama3_405b() -> GraphTrainer.Config:
-    config = to_graph_trainer_config(
-        llama3_405b(seq_len=8192), GraphTrainerLlama3Model.Config
     )
     config.compile = GraphTrainerCompileConfig()
     return config

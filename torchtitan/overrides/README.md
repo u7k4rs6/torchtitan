@@ -77,7 +77,7 @@ tree and replaces matching nodes with the factory's output.
   model.
 - **Minimal surface.** The whole mechanism lives in
   `torchtitan/config/override.py`, reusing the `Configurable.Config.traverse()` +
-  replace pattern that the Float8 converter and LoRA transform already use.
+  replace pattern that quantization converters and the LoRA transform already use.
 
 ## How It Works
 
@@ -369,7 +369,7 @@ because it is a `Configurable.Config` subclass.
 
 ## Interaction with Converters and Transforms
 
-In-repo converters such as Float8 run first inside `model_registry()` during
+In-repo quantization converters run first inside `model_registry()` during
 config construction. Model config transforms such as LoRA run afterward when
 the recipe calls `apply_transforms`. Overrides run later in `Trainer.__init__`
 and see the post-converter, post-transform tree. The order is deliberate:
@@ -382,13 +382,13 @@ machinery.
 | Override Target | Conflicts with a converter? | Notes |
 |-----------------|------------------------------|-------|
 | RoPE / FeedForward / MoE / RMSNorm / inner attention | No | Converters don't touch these |
-| GroupedLinear.Config | Possibly | `Float8GroupedLinearConverter` rewrites this |
-| Linear.Config | Yes | Float8 and LoRA can replace these |
+| GroupedLinear.Config | Possibly | Quantization converters can rewrite this |
+| Linear.Config | Yes | Quantization and LoRA can replace these |
 
 Where a converter already rewrote a node, target that node by location with
 `fqns` so the override only claims the instances you intend (e.g. specific
 layers the converter left as plain `Linear.Config`). Field/type-based exclusion
-— "skip instances already turned into `Float8Linear.Config`" — is not expressible
+-- "skip instances already turned into a quantized config" -- is not expressible
 with FQN globs alone and motivates the future predicate selector.
 
 ### Override vs. converter: which to use
@@ -533,4 +533,4 @@ or `__init__.py` — that is the point of the design.
 
 - **Predicate `fqns` selector.** A `(fqn, cfg) -> bool` selector to complement
   the glob strings, enabling field/type-based selection (e.g. skipping linears a
-  converter already turned into `Float8Linear.Config`).
+  converter already turned into a quantized config).

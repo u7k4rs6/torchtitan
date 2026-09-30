@@ -41,7 +41,6 @@ from torchtitan.models.deepseek_v3.config_registry import deepseek_v3_debugmodel
 from torchtitan.models.llama3.config_registry import (
     llama3_debugmodel,
     llama3_debugmodel_ce_loss,
-    llama3_debugmodel_float8_emulate_lora,
     llama3_debugmodel_varlen_attn,
     sft_debugmodel,
 )
@@ -638,16 +637,6 @@ def llama3_debugmodel_varlen_attn_fsdp4_sac() -> Trainer.Config:
     _set_spmd_typechecking(config, typechecking=False)
     config.parallelism.data_parallel_shard_degree = 4
     config.activation_checkpoint = SelectiveAC.Config()
-    return config
-
-
-def llama3_debugmodel_float8_emulate_lora_tp2_pp2() -> Trainer.Config:
-    config = llama3_debugmodel_float8_emulate_lora(seq_len=2048)
-    _set_spmd_typechecking(config, typechecking=False)
-    config.parallelism.tensor_parallel_degree = 2
-    config.parallelism.pipeline_parallel_degree = 2
-    config.parallelism.num_pp_microbatches = 8
-    config.training.num_tokens_per_microbatch_per_dp_rank = 2048
     return config
 
 

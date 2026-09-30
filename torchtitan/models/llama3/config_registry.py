@@ -27,9 +27,6 @@ from torchtitan.config.parallelism import ParallelismConfig
 from torchtitan.config.transform import (
     apply_transforms,
     AsyncTensorParallelTransform,
-    Float8LinearConverter,
-    LinearLoRAHandler,
-    LoRATransform,
     MXFP8LinearConverter,
     NVFP4LinearConverter,
 )
@@ -143,23 +140,6 @@ def llama3_debugmodel_dist_gemm(
     return config
 
 
-def llama3_debugmodel_float8(
-    seq_len: int | None = DEFAULT_DEBUG_MODEL_SEQ_LEN,
-) -> Trainer.Config:
-    config = llama3_debugmodel(seq_len=seq_len)
-    model_compile_enabled = (
-        config.compile is not None and "model" in config.compile.components
-    )
-    config.model = model_registry(
-        "debugmodel",
-        seq_len=seq_len,
-        converters=[
-            Float8LinearConverter.Config(model_compile_enabled=model_compile_enabled),
-        ],
-    )
-    return config
-
-
 def llama3_debugmodel_mxfp8(
     seq_len: int | None = DEFAULT_DEBUG_MODEL_SEQ_LEN,
 ) -> Trainer.Config:
@@ -221,33 +201,6 @@ def llama3_debugmodel_first_85_pct_layers_nvfp4(
         ],
     )
     return config
-
-
-def llama3_debugmodel_float8_emulate_lora(
-    seq_len: int | None = DEFAULT_DEBUG_MODEL_SEQ_LEN,
-) -> Trainer.Config:
-    config = llama3_debugmodel(seq_len=seq_len)
-    config.model = model_registry(
-        "debugmodel",
-        seq_len=seq_len,
-        converters=[
-            Float8LinearConverter.Config(
-                emulate=True,
-                model_compile_enabled=False,
-            ),
-        ],
-    )
-    return apply_transforms(
-        config,
-        [
-            LoRATransform(
-                handlers=(LinearLoRAHandler(),),
-                rank=8,
-                alpha=16.0,
-                target_modules=["wqkv", "wo"],
-            )
-        ],
-    )
 
 
 def llama3_debugmodel_ce_loss(
@@ -370,61 +323,6 @@ def llama3_70b(seq_len: int | None = None) -> Trainer.Config:
         ),
         checkpointer=None,
         activation_checkpoint=FullAC.Config(),
-        validator=None,
-    )
-
-
-def llama3_405b(seq_len: int | None = None) -> Trainer.Config:
-    compile_config = CompileConfig(
-        enable_async_tensor_parallel=True,
-    )
-    model_config = model_registry(
-        "405B",
-        seq_len=seq_len,
-        converters=[
-            Float8LinearConverter.Config(
-                filter_fqns=["lm_head"],
-                model_compile_enabled=(
-                    compile_config is not None and "model" in compile_config.components
-                ),
-            ),
-        ],
-    )
-    return Trainer.Config(
-        loss=ChunkedLossWrapper.Config(
-            loss_fn=CrossEntropyLoss.Config(
-                global_vocab_size=decoder_vocab_size(model_config),
-            ),
-        ),
-        hf_assets_path="./assets/hf/Llama-3.1-405B",
-        profiler=Profiler.Config(
-            enable_profiling=True,
-            profile_freq=100,
-        ),
-        metrics=MetricsProcessor.Config(
-            enable_tensorboard=True,
-        ),
-        model=model_config,
-        optim=Optim.Config(
-            optimizer=OptimizersContainer.Config(
-                optimizers=[AdamW.Config(pattern=r".*", lr=8e-5)]
-            ),
-            lr_scheduler=LRSchedulersContainer.Config(warmup_steps=600),
-        ),
-        training=TrainingConfig(
-            num_tokens_per_microbatch_per_dp_rank=2 * model_config.max_context_length,
-            max_context_length=model_config.max_context_length,
-            steps=3000,
-        ),
-        dataloader=GrainDataLoader.Config(
-            dataset=ConcatThenSplitPackingConfig(dataset=DATASETS["c4"]),
-        ),
-        parallelism=ParallelismConfig(
-            tensor_parallel_degree=8,
-        ),
-        checkpointer=None,
-        activation_checkpoint=FullAC.Config(),
-        compile=compile_config,
         validator=None,
     )
 

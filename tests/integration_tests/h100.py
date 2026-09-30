@@ -5,7 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import torchtitan_recipes.tests.h100 as recipes
-from torchtitan.models.llama3.config_registry import llama3_debugmodel_float8
 
 from tests.integration_tests import OverrideDefinitions
 
@@ -23,34 +22,11 @@ def build_h100_tests_list() -> list[OverrideDefinitions]:
             test_name="2d_asynctp_compile",
         ),
         OverrideDefinitions(
-            configs=[llama3_debugmodel_float8],
-            test_descr="Float8 test",
-            test_name="float8",
-        ),
-        OverrideDefinitions(
             configs=[recipes.llama3_debugmodel_fsdp_symm_mem],
             test_descr="FSDP symmetric memory",
             test_name="fsdp_symm_mem",
             ngpu=2,
             skip_rocm_test=True,
-        ),
-        OverrideDefinitions(
-            configs=[recipes.llama3_debugmodel_float8_fsdp2_tp2_pp2_asynctp_compile],
-            test_descr="FSDP+async TP+PP+torch.compile+Float8",
-            test_name="fsdp+tp+pp+compile+float8",
-            ngpu=8,
-        ),
-        OverrideDefinitions(
-            configs=[recipes.llama3_debugmodel_float8_hsdp2x2_cp2_compile],
-            test_descr="HSDP+CP+torch.compile+Float8",
-            test_name="hsdp+cp+compile+float8",
-            ngpu=8,
-        ),
-        OverrideDefinitions(
-            configs=[recipes.deepseek_v3_debugmodel_float8_grouped_fsdp2_ep2_compile],
-            test_descr="Float8 grouped experts with expert FSDP and torch.compile",
-            test_name="float8_grouped_experts_fsdp",
-            ngpu=4,
         ),
         OverrideDefinitions(
             configs=[recipes.deepseek_v3_debugmodel_hybridep_fsdp4_ep2_compile],
@@ -75,12 +51,5 @@ def build_h100_tests_list() -> list[OverrideDefinitions]:
             test_name="qwen3_fsdp+deepep",
             ngpu=4,
             skip_rocm_test=True,
-        ),
-        OverrideDefinitions(
-            configs=[recipes.qwen35_debugmodel_moe_float8_lora],
-            test_descr="Qwen3.5 MoE Float8 + LoRA",
-            test_name="qwen3_5_moe_float8_lora",
-            ngpu=8,
-            use_real_pg=True,
         ),
     ]
