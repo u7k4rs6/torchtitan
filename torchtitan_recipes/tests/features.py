@@ -315,6 +315,12 @@ def muse_glimmer_debugmodel_fsdp2_pp2_deferred_gradient_reduction() -> Trainer.C
     return config
 
 
+def muse_glimmer_debugmodel_fsdp2_pp2_deferred_reduce_grad_wait() -> Trainer.Config:
+    config = muse_glimmer_debugmodel_fsdp2_pp2_deferred_gradient_reduction()
+    config.parallelism.pipeline_parallel_schedule = "Interleaved1F1B"
+    return config
+
+
 def muse_glimmer_debugmodel_fsdp2_pp2_optimizer_cuda_graph() -> Trainer.Config:
     config = muse_glimmer_debugmodel_fsdp2_pp2_deferred_gradient_reduction()
     config.optim.enable_cuda_graph = True
